@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
-import { employeesData, recognitionData, surveyData, activityData, announcementData } from '../data/mockData';
+import { recognitionData, surveyData, activityData, announcementData } from '../data/mockData';
+import { db } from '../data/inMemoryDB';
 
 const AppContext = createContext(null);
 
@@ -11,24 +12,27 @@ export function AppProvider({ children, mode, setMode }) {
   });
 
   const [themeMode, setThemeMode] = useState(mode);
-  const [employees, setEmployees] = useState(employeesData);
+  const [employees, setEmployees] = useState([]);
   const [recognitions, setRecognitions] = useState(recognitionData);
   const [surveys, setSurveys] = useState(surveyData);
   const [activities, setActivities] = useState(activityData);
   const [announcements, setAnnouncements] = useState(announcementData);
   const [loading, setLoading] = useState(true);
+  const [crudLoading, setCrudLoading] = useState(false);
 
+  // Load employees from in-memory DB on mount
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setLoading(false);
-      setEmployees(employeesData);
-      setRecognitions(recognitionData);
-      setSurveys(surveyData);
-      setActivities(activityData);
-      setAnnouncements(announcementData);
-    }, 600);
-
-    return () => clearTimeout(timer);
+    const loadData = async () => {
+      try {
+        const employeeList = await db.getEmployees();
+        setEmployees(employeeList);
+      } catch (error) {
+        console.error('Failed to load employees:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
   }, []);
 
   useEffect(() => {
@@ -69,6 +73,64 @@ export function AppProvider({ children, mode, setMode }) {
     setMode(next);
   };
 
+  // ===== CRUD Operations for Employees =====
+
+  // CREATE
+  const addEmployee = async (employeeData) => {
+    setCrudLoading(true);
+    try {
+      const newEmployee = await db.createEmployee(employeeData);
+      setEmployees((prev) => [...prev, newEmployee]);
+      return { success: true, employee: newEmployee };
+    } catch (error) {
+      return { success: false, message: error.message };
+    } finally {
+      setCrudLoading(false);
+    }
+  };
+
+  // READ (already loaded via useEffect, but expose refresh)
+  const refreshEmployees = async () => {
+    setCrudLoading(true);
+    try {
+      const employeeList = await db.getEmployees();
+      setEmployees(employeeList);
+      return { success: true, employees: employeeList };
+    } catch (error) {
+      return { success: false, message: error.message };
+    } finally {
+      setCrudLoading(false);
+    }
+  };
+
+  // UPDATE
+  const updateEmployee = async (id, employeeData) => {
+    setCrudLoading(true);
+    try {
+      const updatedEmployee = await db.updateEmployee(id, employeeData);
+      setEmployees((prev) => prev.map((emp) => (emp.id === Number(id) ? updatedEmployee : emp)));
+      return { success: true, employee: updatedEmployee };
+    } catch (error) {
+      return { success: false, message: error.message };
+    } finally {
+      setCrudLoading(false);
+    }
+  };
+
+  // DELETE
+  const deleteEmployee = async (id) => {
+    setCrudLoading(true);
+    try {
+      const deletedEmployee = await db.deleteEmployee(id);
+      setEmployees((prev) => prev.filter((emp) => emp.id !== Number(id)));
+      return { success: true, employee: deletedEmployee };
+    } catch (error) {
+      return { success: false, message: error.message };
+    } finally {
+      setCrudLoading(false);
+    }
+  };
+
   const value = useMemo(
     () => ({
       auth,
@@ -84,8 +146,14 @@ export function AppProvider({ children, mode, setMode }) {
       activities,
       announcements,
       loading,
+      crudLoading,
+      // CRUD operations
+      addEmployee,
+      updateEmployee,
+      deleteEmployee,
+      refreshEmployees,
     }),
-    [auth, themeMode, employees, recognitions, surveys, activities, announcements, loading, mode]
+    [auth, themeMode, employees, recognitions, surveys, activities, announcements, loading, crudLoading, mode]
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
