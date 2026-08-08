@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
-import { Avatar, Box, Chip, Grid, InputAdornment, MenuItem, Paper, Stack, TextField, Typography, useTheme } from '@mui/material';
-import { Search, LocationOn, WorkOutline, Star, FilterAlt, Sort } from '@mui/icons-material';
+import { Alert, Avatar, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Grid, InputAdornment, MenuItem, Paper, Snackbar, Stack, TextField, Typography, useTheme } from '@mui/material';
+import { Search, LocationOn, WorkOutline, Star, FilterAlt, Sort, Add, Edit, Delete, PersonAdd } from '@mui/icons-material';
 import { useAppContext } from '../context/AppContext';
+import EmployeeFormModal from '../components/EmployeeFormModal';
 
 const avatarGradients = ['linear-gradient(135deg, #6366f1, #a855f7)', 'linear-gradient(135deg, #ec4899, #f59e0b)', 'linear-gradient(135deg, #10b981, #0ea5e9)', 'linear-gradient(135deg, #f59e0b, #ef4444)'];
 
@@ -13,11 +14,22 @@ function getGradient(name = '') {
 
 export default function EmployeesPage() {
   const theme = useTheme();
-  const { employees } = useAppContext();
+  const { employees, addEmployee, updateEmployee, deleteEmployee } = useAppContext();
   const [search, setSearch] = useState('');
   const [department, setDepartment] = useState('All');
   const [designation, setDesignation] = useState('All');
   const [sortBy, setSortBy] = useState('name');
+
+  // Modal state
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingEmployee, setEditingEmployee] = useState(null);
+
+  // Delete confirmation
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  // Snackbar
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
   const filteredEmployees = useMemo(() => {
     const filtered = employees.filter((employee) => {
@@ -38,14 +50,80 @@ export default function EmployeesPage() {
   const getStatusColor = (status) => {
     if (status === 'Active') return 'success';
     if (status === 'Remote') return 'info';
+    if (status === 'On Leave') return 'warning';
     return 'default';
+  };
+
+  const showSnackbar = (message, severity = 'success') => {
+    setSnackbar({ open: true, message, severity });
+  };
+
+  // ===== CRUD Handlers =====
+
+  const handleAddClick = () => {
+    setEditingEmployee(null);
+    setFormOpen(true);
+  };
+
+  const handleEditClick = (employee) => {
+    setEditingEmployee(employee);
+    setFormOpen(true);
+  };
+
+  const handleSave = async (formData) => {
+    if (editingEmployee) {
+      const result = await updateEmployee(editingEmployee.id, formData);
+      if (result.success) {
+        showSnackbar(`${formData.name}'s information updated successfully.`);
+      } else {
+        showSnackbar(result.message, 'error');
+      }
+      return result;
+    } else {
+      const result = await addEmployee(formData);
+      if (result.success) {
+        showSnackbar(`${formData.name} was added to the team.`);
+      } else {
+        showSnackbar(result.message, 'error');
+      }
+      return result;
+    }
+  };
+
+  const handleDeleteClick = (employee) => {
+    setDeleteTarget(employee);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleteLoading(true);
+    const result = await deleteEmployee(deleteTarget.id);
+    setDeleteLoading(false);
+    if (result.success) {
+      showSnackbar(`${deleteTarget.name} was removed from the team.`);
+      setDeleteTarget(null);
+    } else {
+      showSnackbar(result.message, 'error');
+      setDeleteTarget(null);
+    }
   };
 
   return (
     <Box>
-      <Box className="animate-fade-up" sx={{ mb: 3 }}>
-        <Typography variant="h4" sx={{ fontWeight: 800 }}>Employee Directory</Typography>
-        <Typography color="text.secondary" sx={{ mt: 0.5 }}>Find and explore your team members.</Typography>
+      <Box className="animate-fade-up" sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 2 }}>
+        <Box>
+          <Typography variant="h4" sx={{ fontWeight: 800 }}>Employee Directory</Typography>
+          <Typography color="text.secondary" sx={{ mt: 0.5 }}>Manage, add, and update your team members.</Typography>
+        </Box>
+        <Button
+          variant="contained"
+          className="btn-glow"
+          startIcon={<PersonAdd />}
+          onClick={handleAddClick}
+          sx={{ borderRadius: 3, px: 3, py: 1.2 }}
+        >
+          Add Employee
+        </Button>
       </Box>
 
       <Paper className="card-surface" sx={{ p: 2.5, mb: 3 }}>
@@ -101,7 +179,7 @@ export default function EmployeesPage() {
       <Grid container spacing={3}>
         {filteredEmployees.map((employee, index) => (
           <Grid item xs={12} md={6} lg={4} key={employee.id} className={`animate-fade-up animation-delay-${(index % 4) + 1}`}>
-            <Paper className="card-surface card-clickable" sx={{ p: 3, height: '100%', position: 'relative', overflow: 'hidden' }}>
+            <Paper className="card-surface" sx={{ p: 3, height: '100%', position: 'relative', overflow: 'hidden' }}>
               <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, height: 4, background: getGradient(employee.name) }} />
               <Stack direction="row" spacing={2} alignItems="center">
                 <Avatar className="avatar-ring" sx={{ width: 58, height: 58, background: getGradient(employee.name), fontWeight: 800, fontSize: 22 }}>
@@ -138,6 +216,31 @@ export default function EmployeesPage() {
                   ))}
                 </Stack>
               </Box>
+
+              {/* Action buttons */}
+              <Stack direction="row" spacing={1} sx={{ mt: 2, pt: 2, borderTop: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.06)'}` }}>
+                <Button
+                  fullWidth
+                  size="small"
+                  variant="outlined"
+                  startIcon={<Edit />}
+                  onClick={() => handleEditClick(employee)}
+                  sx={{ borderRadius: 2, fontWeight: 700 }}
+                >
+                  Edit
+                </Button>
+                <Button
+                  fullWidth
+                  size="small"
+                  variant="outlined"
+                  color="error"
+                  startIcon={<Delete />}
+                  onClick={() => handleDeleteClick(employee)}
+                  sx={{ borderRadius: 2, fontWeight: 700 }}
+                >
+                  Delete
+                </Button>
+              </Stack>
             </Paper>
           </Grid>
         ))}
@@ -147,8 +250,47 @@ export default function EmployeesPage() {
         <Paper className="card-surface" sx={{ p: 6, textAlign: 'center' }}>
           <Typography variant="h6" sx={{ fontWeight: 700 }}>No employees found</Typography>
           <Typography color="text.secondary" sx={{ mt: 1 }}>Try adjusting your search or filters.</Typography>
+          <Button variant="contained" className="btn-glow" startIcon={<Add />} onClick={handleAddClick} sx={{ mt: 3, borderRadius: 3 }}>
+            Add your first employee
+          </Button>
         </Paper>
       )}
+
+      {/* Add/Edit Modal */}
+      <EmployeeFormModal
+        open={formOpen}
+        onClose={() => setFormOpen(false)}
+        employee={editingEmployee}
+        onSave={handleSave}
+      />
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={Boolean(deleteTarget)} onClose={() => setDeleteTarget(null)} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: 4 } }}>
+        <DialogTitle sx={{ fontWeight: 800 }}>Delete Employee</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to delete <strong>{deleteTarget?.name}</strong>? This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button onClick={() => setDeleteTarget(null)} color="inherit">Cancel</Button>
+          <Button onClick={handleConfirmDelete} color="error" variant="contained" disabled={deleteLoading}>
+            {deleteLoading ? 'Deleting...' : 'Delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Snackbar for feedback */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert severity={snackbar.severity} variant="filled" sx={{ borderRadius: 3, fontWeight: 600 }}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }
