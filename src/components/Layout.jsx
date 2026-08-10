@@ -1,5 +1,5 @@
 import { AppBar, Avatar, Badge, Box, Divider, Drawer, IconButton, List, ListItemButton, ListItemIcon, ListItemText, Menu, MenuItem, Toolbar, Tooltip, Typography, useMediaQuery, useTheme } from '@mui/material';
-import { Menu as MenuIcon, Dashboard, Groups, EmojiEvents, Assessment, EventAvailable, Campaign, Person, Logout, Brightness4, Brightness7, KeyboardArrowDown, NotificationsNone, Psychology, ChevronLeft, ChevronRight } from '@mui/icons-material';
+import { Menu as MenuIcon, Dashboard, Groups, EmojiEvents, Assessment, EventAvailable, Campaign, Person, Logout, Brightness4, Brightness7, KeyboardArrowDown, NotificationsNone, Psychology, ChevronLeft, ChevronRight, Payments, Payment, History, AdminPanelSettings } from '@mui/icons-material';
 import { useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
@@ -14,6 +14,10 @@ const navItems = [
   { label: 'Surveys', path: '/surveys', icon: <Assessment fontSize="small" /> },
   { label: 'Activities', path: '/activities', icon: <EventAvailable fontSize="small" /> },
   { label: 'Announcements', path: '/announcements', icon: <Campaign fontSize="small" /> },
+  { label: 'Compensation', path: '/compensation', icon: <Payments fontSize="small" /> },
+  { label: 'Payroll', path: '/payroll', icon: <Payment fontSize="small" /> },
+  { label: 'Salary History', path: '/salary-history', icon: <History fontSize="small" /> },
+  { label: 'Salary Setup', path: '/salary-setup', icon: <AdminPanelSettings fontSize="small" /> },
 ];
 
 const gradientColors = ['linear-gradient(135deg, #6366f1, #a855f7)', 'linear-gradient(135deg, #ec4899, #f59e0b)', 'linear-gradient(135deg, #10b981, #0ea5e9)', 'linear-gradient(135deg, #f59e0b, #ef4444)'];
@@ -27,6 +31,7 @@ export default function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
   const { auth, logout, toggleTheme, themeMode } = useAppContext();
+  const isAdmin = auth?.user?.role === 'Admin';
 
   const handleDrawerToggle = () => setMobileOpen(!mobileOpen);
   const handleProfileMenu = (e) => setProfileMenu(e.currentTarget);
@@ -68,6 +73,8 @@ export default function Layout() {
       <Divider sx={{ mx: 2 }} />
       <List sx={{ flexGrow: 1, py: 1.5 }}>
         {navItems.map((item) => {
+          // Only show Salary Setup to admins
+          if (item.path === '/salary-setup' && !isAdmin) return null;
           const active = location.pathname === item.path;
           return (
             <Tooltip key={item.path} title={effectiveCollapsed ? item.label : ''} placement="right" arrow>

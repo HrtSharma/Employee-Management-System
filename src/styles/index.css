@@ -337,3 +337,12 @@ img { max-width: 100%; }
   font-weight: 600;
   color: #fff !important;
 }
+
+/* ===== Table row hover ===== */
+.table-row-hover {
+  transition: background 0.2s ease;
+}
+
+.table-row-hover:hover {
+  background: rgba(99, 102, 241, 0.05);
+}

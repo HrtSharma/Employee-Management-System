@@ -86,6 +86,11 @@ export default function LoginPage() {
             <Typography color="text.secondary" sx={{ mt: 0.5 }}>Sign in to your employee experience dashboard</Typography>
           </Box>
           <Paper elevation={0} sx={{ p: { xs: 2.5, md: 3.5 }, borderRadius: 4, background: theme.palette.mode === 'dark' ? 'rgba(17,24,39,0.8)' : 'rgba(255,255,255,0.85)', backdropFilter: 'blur(16px)', border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.06)'}` }}>
+            <Box sx={{ mb: 2, p: 1.5, borderRadius: 2, bgcolor: 'rgba(99, 102, 241, 0.08)', border: '1px dashed rgba(99, 102, 241, 0.3)' }}>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
+                💡 Demo: Use any email containing <strong>"admin"</strong> (e.g. admin@company.com) to access the Admin-only Salary Setup area.
+              </Typography>
+            </Box>
             {error && <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>{error}</Alert>}
             {success && <Alert severity="success" sx={{ mb: 2, borderRadius: 2 }}>{success}</Alert>}
             <Box component="form" onSubmit={handleSubmit}>
