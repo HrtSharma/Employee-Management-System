@@ -13,9 +13,14 @@ import RecognitionPage from './pages/RecognitionPage';
 import SurveysPage from './pages/SurveysPage';
 import ActivitiesPage from './pages/ActivitiesPage';
 import AnnouncementsPage from './pages/AnnouncementsPage';
+import CompensationPage from './pages/CompensationPage';
+import PayrollPage from './pages/PayrollPage';
+import SalaryHistoryPage from './pages/SalaryHistoryPage';
+import SalarySetupPage from './pages/SalarySetupPage';
 
 function AppRoutes() {
   const { auth } = useAppContext();
+  const isAdmin = auth?.user?.role === 'Admin';
 
   return (
     <Routes>
@@ -30,6 +35,10 @@ function AppRoutes() {
         <Route path="/surveys" element={<SurveysPage />} />
         <Route path="/activities" element={<ActivitiesPage />} />
         <Route path="/announcements" element={<AnnouncementsPage />} />
+        <Route path="/compensation" element={<CompensationPage />} />
+        <Route path="/payroll" element={<PayrollPage />} />
+        <Route path="/salary-history" element={<SalaryHistoryPage />} />
+        <Route path="/salary-setup" element={isAdmin ? <SalarySetupPage /> : <Navigate to="/dashboard" replace />} />
         <Route path="/profile" element={<ProfilePage />} />
       </Route>
       <Route path="*" element={<Navigate to={auth.isAuthenticated ? '/dashboard' : '/login'} replace />} />

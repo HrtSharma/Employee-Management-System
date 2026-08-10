@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { recognitionData, surveyData, activityData, announcementData } from '../data/mockData';
 import { db } from '../data/inMemoryDB';
+import { payrollDB } from '../data/payrollDB';
 
 const AppContext = createContext(null);
 
@@ -47,7 +48,10 @@ export function AppProvider({ children, mode, setMode }) {
     try {
       setLoading(true);
       const response = await axios.get('https://jsonplaceholder.typicode.com/users/1');
-      const user = { id: response.data.id, name: response.data.name, email, role: 'HR Lead' };
+      // Detect admin login via email
+      const isAdminLogin = email.toLowerCase().includes('admin');
+      const role = isAdminLogin ? 'Admin' : 'HR Lead';
+      const user = { id: response.data.id, name: response.data.name, email, role };
       setAuth({ isAuthenticated: true, user });
       return { success: true, user };
     } catch {
@@ -80,6 +84,8 @@ export function AppProvider({ children, mode, setMode }) {
     setCrudLoading(true);
     try {
       const newEmployee = await db.createEmployee(employeeData);
+      // Auto-create a default salary structure for the new employee
+      await payrollDB.createDefaultSalaryStructure(newEmployee.id, newEmployee);
       setEmployees((prev) => [...prev, newEmployee]);
       return { success: true, employee: newEmployee };
     } catch (error) {
