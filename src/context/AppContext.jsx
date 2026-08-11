@@ -44,6 +44,24 @@ export function AppProvider({ children, mode, setMode }) {
     localStorage.setItem('engagement-theme', themeMode);
   }, [themeMode]);
 
+  // Resolve the stored profile photo for the given email/name.
+  // Checks the user photo store first, then the linked employee record.
+  const resolveUserPhoto = async (email, name) => {
+    try {
+      const storedPhoto = await db.getUserPhoto(email);
+      if (storedPhoto) return storedPhoto;
+      const allEmployees = await db.getEmployees();
+      const linkedEmployee = allEmployees.find(
+        (emp) =>
+          (email && emp.email?.toLowerCase() === email.toLowerCase()) ||
+          (name && emp.name.toLowerCase() === name.toLowerCase())
+      );
+      return linkedEmployee?.photo || null;
+    } catch {
+      return null;
+    }
+  };
+
   const login = async (email, password) => {
     try {
       setLoading(true);
@@ -54,15 +72,7 @@ export function AppProvider({ children, mode, setMode }) {
       const user = { id: response.data.id, name: response.data.name, email, role };
 
       // Restore the profile photo persisted in the in-memory DB (if any)
-      try {
-        const storedPhoto = await db.getProfilePhoto(email);
-        if (storedPhoto) user.photo = storedPhoto;
-        const allEmployees = await db.getEmployees();
-        const linkedEmployee = allEmployees.find((emp) => emp.email?.toLowerCase() === email.toLowerCase());
-        if (linkedEmployee?.photo) user.photo = linkedEmployee.photo;
-      } catch {
-        // Non-critical: sign-in should still succeed even if photo restore fails
-      }
+      user.photo = await resolveUserPhoto(email, user.name);
 
       setAuth({ isAuthenticated: true, user });
       return { success: true, user };
@@ -75,7 +85,11 @@ export function AppProvider({ children, mode, setMode }) {
   };
 
   const signup = async (payload) => {
-    setAuth({ isAuthenticated: true, user: { ...payload, role: payload.department } });
+    const name = `${payload.firstName || ''} ${payload.lastName || ''}`.trim() || payload.email;
+    const user = { ...payload, name, role: payload.department };
+    // Restore any photo previously saved for this email
+    user.photo = await resolveUserPhoto(payload.email, name);
+    setAuth({ isAuthenticated: true, user });
     return { success: true };
   };
 
@@ -159,7 +173,7 @@ export function AppProvider({ children, mode, setMode }) {
       const name = auth?.user?.name;
 
       // 1. Persist in the in-memory DB keyed by the signed-in user's email
-      await db.saveProfilePhoto(email, photo);
+      await db.setUserPhoto(email, photo);
 
       // 2. Mirror the photo on the linked employee record when one matches
       const allEmployees = await db.getEmployees();
@@ -169,7 +183,7 @@ export function AppProvider({ children, mode, setMode }) {
           (name && emp.name.toLowerCase() === name.toLowerCase())
       );
       if (linkedEmployee) {
-        const updatedEmployee = await db.updateProfilePhoto(linkedEmployee.id, photo);
+        const updatedEmployee = await db.updateEmployeePhoto(linkedEmployee.id, photo);
         setEmployees((prev) =>
           prev.map((emp) => (emp.id === updatedEmployee.id ? updatedEmployee : emp))
         );
@@ -179,6 +193,44 @@ export function AppProvider({ children, mode, setMode }) {
       setAuth((prev) => ({
         ...prev,
         user: prev.user ? { ...prev.user, photo } : prev.user,
+      }));
+
+      return { success: true };
+    } catch (error) {
+      return { success: false, message: error.message };
+    } finally {
+      setCrudLoading(false);
+    }
+  };
+
+  // Remove the signed-in user's profile photo (reverts to initials)
+  const removeProfilePhoto = async () => {
+    setCrudLoading(true);
+    try {
+      const email = auth?.user?.email;
+      const name = auth?.user?.name;
+
+      // 1. Remove from the in-memory user photo store
+      await db.setUserPhoto(email, null);
+
+      // 2. Clear the linked employee record when one matches
+      const allEmployees = await db.getEmployees();
+      const linkedEmployee = allEmployees.find(
+        (emp) =>
+          (email && emp.email?.toLowerCase() === email.toLowerCase()) ||
+          (name && emp.name.toLowerCase() === name.toLowerCase())
+      );
+      if (linkedEmployee) {
+        const updatedEmployee = await db.updateEmployeePhoto(linkedEmployee.id, null);
+        setEmployees((prev) =>
+          prev.map((emp) => (emp.id === updatedEmployee.id ? updatedEmployee : emp))
+        );
+      }
+
+      // 3. Reflect instantly on the signed-in user
+      setAuth((prev) => ({
+        ...prev,
+        user: prev.user ? { ...prev.user, photo: null } : prev.user,
       }));
 
       return { success: true };
@@ -210,6 +262,7 @@ export function AppProvider({ children, mode, setMode }) {
       updateEmployee,
       deleteEmployee,
       updateProfilePhoto,
+      removeProfilePhoto,
       refreshEmployees,
     }),
     [auth, themeMode, employees, recognitions, surveys, activities, announcements, loading, crudLoading, mode]

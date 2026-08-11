@@ -15,7 +15,7 @@ import {
 import { Close, CloudUpload, Person, PhotoCamera } from '@mui/icons-material';
 import { MAX_FILE_SIZE, processImageFile } from '../utils/imageUtils';
 
-export default function AvatarUploadModal({ open, onClose, currentPhoto, onSave }) {
+export default function AvatarUploadModal({ open, onClose, title = 'Update Profile Photo', currentPhoto, onSave, onRemove }) {
   const fileInputRef = useRef(null);
   const [preview, setPreview] = useState(null);
   const [fileName, setFileName] = useState('');
@@ -70,11 +70,23 @@ export default function AvatarUploadModal({ open, onClose, currentPhoto, onSave 
     }
   };
 
+  const handleRemove = async () => {
+    setSaving(true);
+    setError('');
+    const result = await onRemove();
+    setSaving(false);
+    if (result?.success) {
+      onClose();
+    } else {
+      setError(result?.message || 'Failed to remove your profile photo.');
+    }
+  };
+
   return (
     <Dialog open={open} onClose={saving ? undefined : onClose} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: 4 } }}>
       <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pb: 1 }}>
         <Typography variant="h6" sx={{ fontWeight: 800 }}>
-          Update Profile Photo
+          {title}
         </Typography>
         <IconButton onClick={onClose} size="small" disabled={saving}>
           <Close />
@@ -133,19 +145,28 @@ export default function AvatarUploadModal({ open, onClose, currentPhoto, onSave 
         </Button>
       </DialogContent>
 
-      <DialogActions sx={{ px: 3, py: 2 }}>
-        <Button onClick={onClose} color="inherit" disabled={saving}>
-          Cancel
-        </Button>
-        <Button
-          onClick={handleSave}
-          variant="contained"
-          className="btn-glow"
-          disabled={saving || !preview}
-          startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <PhotoCamera />}
-        >
-          {saving ? 'Saving...' : 'Save Photo'}
-        </Button>
+      <DialogActions sx={{ px: 3, py: 2, justifyContent: 'space-between' }}>
+        <Box>
+          {currentPhoto && onRemove && (
+            <Button onClick={handleRemove} color="inherit" disabled={saving}>
+              Remove
+            </Button>
+          )}
+        </Box>
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <Button onClick={onClose} color="inherit" disabled={saving}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSave}
+            variant="contained"
+            className="btn-glow"
+            disabled={saving || !preview}
+            startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <PhotoCamera />}
+          >
+            {saving ? 'Saving...' : 'Save Photo'}
+          </Button>
+        </Box>
       </DialogActions>
     </Dialog>
   );

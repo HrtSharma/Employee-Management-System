@@ -120,8 +120,8 @@ class InMemoryDB {
     return { ...deleted };
   }
 
-  // UPDATE - Update only an employee's profile photo (data URL string)
-  async updateProfilePhoto(id, photo) {
+  // UPDATE - Update an employee's profile photo (data URL string, or null to clear)
+  async updateEmployeePhoto(id, photo) {
     await this._delay();
     const index = this.employees.findIndex((e) => e.id === Number(id));
     if (index === -1) {
@@ -129,28 +129,39 @@ class InMemoryDB {
     }
     this.employees[index] = {
       ...this.employees[index],
-      photo,
+      photo: photo || null,
       id: Number(id),
     };
     this._saveToStorage();
     return { ...this.employees[index] };
   }
 
-  // Create/update the profile photo for a signed-in user (keyed by email).
-  // Photos are stored in memory even when the user has no employee record yet.
-  async saveProfilePhoto(email, photo) {
-    await this._delay(150);
+  // READ - Get a single employee's profile photo by id
+  async getEmployeePhoto(id) {
+    await this._delay(60);
+    const employee = this.employees.find((e) => e.id === Number(id));
+    return employee?.photo || null;
+  }
+
+  // Save the profile photo for a signed-in user (keyed by email).
+  // Pass null/undefined to remove the stored photo.
+  async setUserPhoto(email, photo) {
+    await this._delay(120);
     if (!email) {
       throw new Error('User email is required to save a profile photo.');
     }
-    this.profilePhotos[email.toLowerCase()] = photo;
+    if (photo) {
+      this.profilePhotos[email.toLowerCase()] = photo;
+    } else {
+      delete this.profilePhotos[email.toLowerCase()];
+    }
     this._savePhotosToStorage();
     return photo;
   }
 
   // READ - Get the stored profile photo for a signed-in user (by email)
-  async getProfilePhoto(email) {
-    await this._delay(80);
+  async getUserPhoto(email) {
+    await this._delay(60);
     if (!email) return null;
     return this.profilePhotos[email.toLowerCase()] || null;
   }
