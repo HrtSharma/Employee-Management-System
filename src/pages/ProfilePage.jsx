@@ -1,6 +1,8 @@
-import { Avatar, Box, Chip, Grid, LinearProgress, Paper, Stack, Typography, useTheme } from '@mui/material';
-import { Email, Badge, WorkOutline, LocationOn, Star, ThumbUp, EmojiEvents, Psychology } from '@mui/icons-material';
+import { useState } from 'react';
+import { Alert, Avatar, Box, Button, Chip, Grid, IconButton, LinearProgress, Paper, Snackbar, Stack, Tooltip, Typography, useTheme } from '@mui/material';
+import { Email, Badge, WorkOutline, LocationOn, Star, ThumbUp, EmojiEvents, Psychology, PhotoCamera } from '@mui/icons-material';
 import { useAppContext } from '../context/AppContext';
+import AvatarUploadModal from '../components/AvatarUploadModal';
 
 const avatarGradients = ['linear-gradient(135deg, #6366f1, #a855f7)', 'linear-gradient(135deg, #ec4899, #f59e0b)', 'linear-gradient(135deg, #10b981, #0ea5e9)', 'linear-gradient(135deg, #f59e0b, #ef4444)'];
 
@@ -12,8 +14,15 @@ function getGradient(name = '') {
 
 export default function ProfilePage() {
   const theme = useTheme();
-  const { auth } = useAppContext();
+  const { auth, updateProfilePhoto } = useAppContext();
   const user = auth.user || { name: 'Ava Patel', email: 'ava.patel@company.com', role: 'HR Lead' };
+
+  // Profile photo upload state
+  const [photoModalOpen, setPhotoModalOpen] = useState(false);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+
+  const displayName = user.name || 'Ava Patel';
+  const profilePhoto = user.photo || null;
 
   const profileStats = [
     { label: 'Recognitions', value: '12', icon: <EmojiEvents />, color: '#f59e0b' },
@@ -30,6 +39,16 @@ export default function ProfilePage() {
 
   const initials = (name = 'A') => name.split(' ').map((n) => n.charAt(0)).slice(0, 2).join('').toUpperCase();
 
+  const handlePhotoSave = async (photo) => {
+    const result = await updateProfilePhoto(photo);
+    setSnackbar({
+      open: true,
+      message: result.success ? 'Profile photo updated successfully.' : (result.message || 'Failed to update your profile photo.'),
+      severity: result.success ? 'success' : 'error',
+    });
+    return result;
+  };
+
   return (
     <Box>
       <Box className="animate-fade-up" sx={{ mb: 3 }}>
@@ -43,10 +62,51 @@ export default function ProfilePage() {
           <Paper className="card-surface" sx={{ p: 4, textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
             <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, height: 100, background: getGradient(user.name || 'Ava Patel') }} />
             <Box sx={{ position: 'relative', zIndex: 1 }}>
-              <Avatar sx={{ width: 96, height: 96, mx: 'auto', background: getGradient(user.name || 'Ava Patel'), fontSize: 34, fontWeight: 800, border: '4px solid #fff', boxShadow: '0 8px 24px rgba(0,0,0,0.15)' }}>
-                {initials(user.name || 'Ava Patel')}
-              </Avatar>
-              <Typography variant="h5" sx={{ fontWeight: 800, mt: 2 }}>{user.name || 'Ava Patel'}</Typography>
+              <Tooltip title="Click to update your profile photo" arrow>
+                <Box
+                  onClick={() => setPhotoModalOpen(true)}
+                  sx={{ position: 'relative', width: 96, height: 96, mx: 'auto', cursor: 'pointer' }}
+                >
+                  <Avatar
+                    src={profilePhoto || undefined}
+                    sx={{ width: 96, height: 96, background: getGradient(displayName), fontSize: 34, fontWeight: 800, border: '4px solid #fff', boxShadow: '0 8px 24px rgba(0,0,0,0.15)', transition: 'transform 0.2s ease', '&:hover': { transform: 'scale(1.05)' }, '& .MuiAvatar-img': { objectFit: 'cover' } }}
+                  >
+                    {initials(displayName)}
+                  </Avatar>
+                  <IconButton
+                    aria-label="Update profile photo"
+                    size="small"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setPhotoModalOpen(true);
+                    }}
+                    sx={{
+                      position: 'absolute',
+                      bottom: 2,
+                      right: 2,
+                      width: 30,
+                      height: 30,
+                      color: '#fff',
+                      background: 'linear-gradient(135deg, #6366f1, #a855f7)',
+                      border: '2px solid #fff',
+                      boxShadow: '0 4px 12px rgba(99, 102, 241, 0.4)',
+                      '&:hover': { background: 'linear-gradient(135deg, #4f46e5, #7c3aed)' },
+                    }}
+                  >
+                    <PhotoCamera sx={{ fontSize: 15 }} />
+                  </IconButton>
+                </Box>
+              </Tooltip>
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<PhotoCamera />}
+                onClick={() => setPhotoModalOpen(true)}
+                sx={{ mt: 1.5, borderRadius: 3, fontWeight: 700 }}
+              >
+                Change Photo
+              </Button>
+              <Typography variant="h5" sx={{ fontWeight: 800, mt: 1.5 }}>{displayName}</Typography>
               <Typography color="text.secondary">{user.role || 'HR Lead'}</Typography>
               <Chip label="Active Member" color="success" size="small" sx={{ mt: 1.5, fontWeight: 700, borderRadius: 2 }} />
             </Box>
@@ -130,6 +190,26 @@ export default function ProfilePage() {
           </Paper>
         </Grid>
       </Grid>
+
+      {/* Profile photo upload dialog */}
+      <AvatarUploadModal
+        open={photoModalOpen}
+        onClose={() => setPhotoModalOpen(false)}
+        currentPhoto={profilePhoto}
+        onSave={handlePhotoSave}
+      />
+
+      {/* Snackbar feedback */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={3500}
+        onClose={() => setSnackbar((prev) => ({ ...prev, open: false }))}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert severity={snackbar.severity} variant="filled" sx={{ borderRadius: 3, fontWeight: 600 }}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

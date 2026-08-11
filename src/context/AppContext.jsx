@@ -52,6 +52,18 @@ export function AppProvider({ children, mode, setMode }) {
       const isAdminLogin = email.toLowerCase().includes('admin');
       const role = isAdminLogin ? 'Admin' : 'HR Lead';
       const user = { id: response.data.id, name: response.data.name, email, role };
+
+      // Restore the profile photo persisted in the in-memory DB (if any)
+      try {
+        const storedPhoto = await db.getProfilePhoto(email);
+        if (storedPhoto) user.photo = storedPhoto;
+        const allEmployees = await db.getEmployees();
+        const linkedEmployee = allEmployees.find((emp) => emp.email?.toLowerCase() === email.toLowerCase());
+        if (linkedEmployee?.photo) user.photo = linkedEmployee.photo;
+      } catch {
+        // Non-critical: sign-in should still succeed even if photo restore fails
+      }
+
       setAuth({ isAuthenticated: true, user });
       return { success: true, user };
     } catch {
@@ -137,6 +149,46 @@ export function AppProvider({ children, mode, setMode }) {
     }
   };
 
+  // UPDATE - Profile photo for the signed-in user
+  // Persists in the in-memory DB, mirrors it on the linked employee record,
+  // and updates the auth user so every avatar in the app refreshes instantly.
+  const updateProfilePhoto = async (photo) => {
+    setCrudLoading(true);
+    try {
+      const email = auth?.user?.email;
+      const name = auth?.user?.name;
+
+      // 1. Persist in the in-memory DB keyed by the signed-in user's email
+      await db.saveProfilePhoto(email, photo);
+
+      // 2. Mirror the photo on the linked employee record when one matches
+      const allEmployees = await db.getEmployees();
+      const linkedEmployee = allEmployees.find(
+        (emp) =>
+          (email && emp.email?.toLowerCase() === email.toLowerCase()) ||
+          (name && emp.name.toLowerCase() === name.toLowerCase())
+      );
+      if (linkedEmployee) {
+        const updatedEmployee = await db.updateProfilePhoto(linkedEmployee.id, photo);
+        setEmployees((prev) =>
+          prev.map((emp) => (emp.id === updatedEmployee.id ? updatedEmployee : emp))
+        );
+      }
+
+      // 3. Update the signed-in user object for instant UI updates
+      setAuth((prev) => ({
+        ...prev,
+        user: prev.user ? { ...prev.user, photo } : prev.user,
+      }));
+
+      return { success: true };
+    } catch (error) {
+      return { success: false, message: error.message };
+    } finally {
+      setCrudLoading(false);
+    }
+  };
+
   const value = useMemo(
     () => ({
       auth,
@@ -157,6 +209,7 @@ export function AppProvider({ children, mode, setMode }) {
       addEmployee,
       updateEmployee,
       deleteEmployee,
+      updateProfilePhoto,
       refreshEmployees,
     }),
     [auth, themeMode, employees, recognitions, surveys, activities, announcements, loading, crudLoading, mode]
