@@ -1,6 +1,7 @@
-import { useState } from 'react';
-import { Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, MenuItem, Stack, TextField, Typography } from '@mui/material';
-import { Close, Add } from '@mui/icons-material';
+import { useEffect, useRef, useState } from 'react';
+import { Alert, Avatar, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, MenuItem, Stack, TextField, Typography } from '@mui/material';
+import { Close, Add, CloudUpload, Person } from '@mui/icons-material';
+import { MAX_FILE_SIZE, processImageFile } from '../utils/imageUtils';
 
 const departments = ['Engineering', 'Design', 'People Operations', 'Sales', 'Marketing'];
 const statuses = ['Active', 'Remote', 'On Leave', 'Inactive'];
@@ -16,14 +17,30 @@ const emptyForm = {
   experience: '',
   status: 'Active',
   satisfaction: 85,
+  photo: null,
 };
 
 export default function EmployeeFormModal({ open, onClose, employee, onSave }) {
   const isEdit = Boolean(employee);
-  const [form, setForm] = useState(employee ? { ...employee, skills: [...employee.skills] } : { ...emptyForm });
+  // The modal stays mounted while `open` toggles, so initialise to empty and keep
+  // the form in sync with the employee being added/edited via the effect below.
+  const [form, setForm] = useState(emptyForm);
   const [skillInput, setSkillInput] = useState('');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const photoInputRef = useRef(null);
+  const [uploading, setUploading] = useState(false);
+
+  // Reset/sync the form whenever the modal opens so switching between Add and
+  // Edit (or between two different employees) never shows stale data.
+  useEffect(() => {
+    if (open) {
+      setForm(employee ? { ...employee, skills: [...(employee.skills || [])] } : { ...emptyForm });
+      setSkillInput('');
+      setError('');
+      setUploading(false);
+    }
+  }, [open, employee]);
 
   const handleChange = (field) => (e) => {
     setForm({ ...form, [field]: e.target.value });
@@ -39,6 +56,26 @@ export default function EmployeeFormModal({ open, onClose, employee, onSave }) {
 
   const handleRemoveSkill = (skillToRemove) => {
     setForm({ ...form, skills: form.skills.filter((s) => s !== skillToRemove) });
+  };
+
+  const handlePhotoChange = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = ''; // allow re-selecting the same file
+    if (!file) return;
+    if (file.size > MAX_FILE_SIZE) {
+      setError('The selected image is larger than 5 MB. Please choose a smaller photo.');
+      return;
+    }
+    setError('');
+    setUploading(true);
+    try {
+      const dataUrl = await processImageFile(file);
+      setForm((prev) => ({ ...prev, photo: dataUrl }));
+    } catch {
+      setError('Could not read that file as an image. Please choose a PNG, JPG, GIF or WEBP photo.');
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleSubmit = async () => {
@@ -111,6 +148,27 @@ export default function EmployeeFormModal({ open, onClose, employee, onSave }) {
               inputProps={{ min: 0, max: 100 }}
             />
           </Stack>
+
+          <Box>
+            <Typography variant="body2" sx={{ fontWeight: 700, mb: 1 }}>Profile Photo</Typography>
+            <Stack direction="row" spacing={1.5} alignItems="center" sx={{ flexWrap: 'wrap', gap: 1 }}>
+              <input ref={photoInputRef} type="file" accept="image/*" hidden onChange={handlePhotoChange} />
+              <Avatar
+                src={form.photo || undefined}
+                sx={{ width: 52, height: 52, bgcolor: 'rgba(99, 102, 241, 0.1)', color: 'primary.main', fontWeight: 700, fontSize: 20, border: '1px solid rgba(99, 102, 241, 0.3)' }}
+              >
+                {form.name ? form.name.charAt(0).toUpperCase() : <Person fontSize="small" />}
+              </Avatar>
+              <Button size="small" variant="outlined" startIcon={<CloudUpload />} onClick={() => photoInputRef.current?.click()} disabled={uploading}>
+                {uploading ? 'Processing...' : 'Upload Photo'}
+              </Button>
+              {form.photo && (
+                <Button size="small" color="inherit" onClick={() => setForm((prev) => ({ ...prev, photo: null }))}>
+                  Remove
+                </Button>
+              )}
+            </Stack>
+          </Box>
 
           <Box>
             <Typography variant="body2" sx={{ fontWeight: 700, mb: 1 }}>Skills</Typography>

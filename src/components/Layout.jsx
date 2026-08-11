@@ -97,7 +97,7 @@ export default function Layout() {
       <Box sx={{ p: effectiveCollapsed ? 1 : 2 }}>
         {!effectiveCollapsed ? (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, p: 1.5, borderRadius: 3, background: theme.palette.mode === 'dark' ? 'rgba(99, 102, 241, 0.12)' : 'rgba(99, 102, 241, 0.08)' }}>
-            <Avatar sx={{ width: 38, height: 38, background: getAvatarGradient(auth.user?.name || 'Admin'), fontSize: 15, fontWeight: 700 }}>
+            <Avatar sx={{ width: 38, height: 38, background: getAvatarGradient(auth.user?.name || 'Admin'), fontSize: 15, fontWeight: 700 }} src={auth.user?.photo || undefined}>
               {(auth.user?.name || 'A').charAt(0).toUpperCase()}
             </Avatar>
             <Box sx={{ flexGrow: 1, minWidth: 0 }}>
@@ -111,7 +111,7 @@ export default function Layout() {
         ) : (
           <Box sx={{ display: 'flex', justifyContent: 'center' }}>
             <Tooltip title={auth.user?.name || 'Admin'} placement="right" arrow>
-              <Avatar sx={{ width: 40, height: 40, background: getAvatarGradient(auth.user?.name || 'Admin'), cursor: 'pointer' }} onClick={handleProfileMenu}>
+              <Avatar sx={{ width: 40, height: 40, background: getAvatarGradient(auth.user?.name || 'Admin'), cursor: 'pointer' }} onClick={handleProfileMenu} src={auth.user?.photo || undefined}>
                 {(auth.user?.name || 'A').charAt(0).toUpperCase()}
               </Avatar>
             </Tooltip>
@@ -175,6 +175,7 @@ export default function Layout() {
               className="avatar-ring"
               sx={{ width: 36, height: 36, background: getAvatarGradient(auth.user?.name || 'Admin'), fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
               onClick={handleProfileMenu}
+              src={auth.user?.photo || undefined}
             >
               {(auth.user?.name || 'A').charAt(0).toUpperCase()}
             </Avatar>

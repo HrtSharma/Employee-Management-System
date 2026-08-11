@@ -182,7 +182,7 @@ export default function EmployeesPage() {
             <Paper className="card-surface" sx={{ p: 3, height: '100%', position: 'relative', overflow: 'hidden' }}>
               <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, height: 4, background: getGradient(employee.name) }} />
               <Stack direction="row" spacing={2} alignItems="center">
-                <Avatar className="avatar-ring" sx={{ width: 58, height: 58, background: getGradient(employee.name), fontWeight: 800, fontSize: 22 }}>
+                <Avatar className="avatar-ring" src={employee.photo || undefined} sx={{ width: 58, height: 58, background: getGradient(employee.name), fontWeight: 800, fontSize: 22, '& .MuiAvatar-img': { objectFit: 'cover' } }}>
                   {employee.name.charAt(0)}
                 </Avatar>
                 <Box sx={{ flexGrow: 1, minWidth: 0 }}>
