@@ -16,7 +16,16 @@ export function AppProvider({ children, mode, setMode }) {
   const [employees, setEmployees] = useState([]);
   const [recognitions, setRecognitions] = useState(recognitionData);
   const [surveys, setSurveys] = useState(surveyData);
-  const [activities, setActivities] = useState(activityData);
+  const [activities, setActivities] = useState(() => {
+    // Persist activities to localStorage so CRUD edits survive refreshes
+    try {
+      const stored = localStorage.getItem('engagement-activities');
+      if (stored) return JSON.parse(stored);
+    } catch (error) {
+      console.error('Failed to load activities:', error);
+    }
+    return activityData;
+  });
   const [announcements, setAnnouncements] = useState(announcementData);
   const [loading, setLoading] = useState(true);
   const [crudLoading, setCrudLoading] = useState(false);
@@ -149,6 +158,49 @@ export function AppProvider({ children, mode, setMode }) {
     }
   };
 
+  // ===== CRUD Operations for Activities =====
+
+  // CREATE
+  const addActivity = async (activityData) => {
+    const newActivity = {
+      id: Math.max(...activities.map((a) => a.id), 0) + 1,
+      ...activityData,
+    };
+    const next = [...activities, newActivity];
+    setActivities(next);
+    try {
+      localStorage.setItem('engagement-activities', JSON.stringify(next));
+    } catch (error) {
+      console.error('Failed to save activities:', error);
+    }
+    return { success: true, activity: newActivity };
+  };
+
+  // UPDATE
+  const updateActivity = async (id, activityData) => {
+    const updatedActivity = { ...activityData, id: Number(id) };
+    const next = activities.map((a) => (a.id === Number(id) ? updatedActivity : a));
+    setActivities(next);
+    try {
+      localStorage.setItem('engagement-activities', JSON.stringify(next));
+    } catch (error) {
+      console.error('Failed to save activities:', error);
+    }
+    return { success: true, activity: updatedActivity };
+  };
+
+  // DELETE
+  const deleteActivity = async (id) => {
+    const next = activities.filter((a) => a.id !== Number(id));
+    setActivities(next);
+    try {
+      localStorage.setItem('engagement-activities', JSON.stringify(next));
+    } catch (error) {
+      console.error('Failed to save activities:', error);
+    }
+    return { success: true, id: Number(id) };
+  };
+
   // UPDATE - Profile photo for the signed-in user
   // Persists in the in-memory DB, mirrors it on the linked employee record,
   // and updates the auth user so every avatar in the app refreshes instantly.
@@ -211,8 +263,11 @@ export function AppProvider({ children, mode, setMode }) {
       deleteEmployee,
       updateProfilePhoto,
       refreshEmployees,
+      addActivity,
+      updateActivity,
+      deleteActivity,
     }),
-    [auth, themeMode, employees, recognitions, surveys, activities, announcements, loading, crudLoading, mode]
+    [auth, themeMode, employees, recognitions, surveys, activities, announcements, loading, crudLoading, mode, addActivity, deleteActivity, updateActivity]
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
