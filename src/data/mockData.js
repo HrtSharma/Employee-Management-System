@@ -73,6 +73,6 @@ export const activityData = [
 ];
 
 export const announcementData = [
-  { id: 1, title: 'New hybrid work guidelines', body: 'Updated guidance for team collaboration across locations.', time: '2 hours ago' },
-  { id: 2, title: 'Q3 engagement survey results', body: 'Insights shared for teams to improve employee experience.', time: '5 hours ago' },
+  { id: 1, author: 'Daniel Kim', title: 'New hybrid work guidelines', body: 'Updated guidance for team collaboration across locations.', time: '2 hours ago' },
+  { id: 2, author: 'Ava Patel', title: 'Q3 engagement survey results', body: 'Insights shared for teams to improve employee experience.', time: '5 hours ago' },
 ];
