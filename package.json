@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "node ./node_modules/vite/bin/vite.js",
     "build": "node ./node_modules/vite/bin/vite.js build",
-    "preview": "node ./node_modules/vite/bin/vite.js preview"
+    "preview": "node ./node_modules/vite/bin/vite.js preview",
+    "cert": "mkdir certs 2>nul & tools\\mkcert.exe -install & tools\\mkcert.exe -key-file certs\\localhost-key.pem -cert-file certs\\localhost.pem localhost 127.0.0.1 ::1"
   },
   "dependencies": {
     "@emotion/react": "^11.11.0",
