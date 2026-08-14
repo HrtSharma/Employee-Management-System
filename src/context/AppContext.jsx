@@ -14,8 +14,25 @@ export function AppProvider({ children, mode, setMode }) {
 
   const [themeMode, setThemeMode] = useState(mode);
   const [employees, setEmployees] = useState([]);
-  const [recognitions, setRecognitions] = useState(recognitionData);
-  const [surveys, setSurveys] = useState(surveyData);
+  const [recognitions, setRecognitions] = useState(() => {
+    // Persist to localStorage so CRUD edits survive refreshes
+    try {
+      const stored = localStorage.getItem('engagement-recognitions');
+      if (stored) return JSON.parse(stored);
+    } catch (error) {
+      console.error('Failed to load recognitions:', error);
+    }
+    return recognitionData;
+  });
+  const [surveys, setSurveys] = useState(() => {
+    try {
+      const stored = localStorage.getItem('engagement-surveys');
+      if (stored) return JSON.parse(stored);
+    } catch (error) {
+      console.error('Failed to load surveys:', error);
+    }
+    return surveyData;
+  });
   const [activities, setActivities] = useState(() => {
     // Persist activities to localStorage so CRUD edits survive refreshes
     try {
@@ -26,7 +43,15 @@ export function AppProvider({ children, mode, setMode }) {
     }
     return activityData;
   });
-  const [announcements, setAnnouncements] = useState(announcementData);
+  const [announcements, setAnnouncements] = useState(() => {
+    try {
+      const stored = localStorage.getItem('engagement-announcements');
+      if (stored) return JSON.parse(stored);
+    } catch (error) {
+      console.error('Failed to load announcements:', error);
+    }
+    return announcementData;
+  });
   const [loading, setLoading] = useState(true);
   const [crudLoading, setCrudLoading] = useState(false);
 
@@ -201,6 +226,135 @@ export function AppProvider({ children, mode, setMode }) {
     return { success: true, id: Number(id) };
   };
 
+  // ===== CRUD Operations for Surveys =====
+
+  // CREATE
+  const addSurvey = async (surveyData) => {
+    const newSurvey = {
+      id: Math.max(...surveys.map((s) => s.id), 0) + 1,
+      ...surveyData,
+    };
+    const next = [...surveys, newSurvey];
+    setSurveys(next);
+    try {
+      localStorage.setItem('engagement-surveys', JSON.stringify(next));
+    } catch (error) {
+      console.error('Failed to save surveys:', error);
+    }
+    return { success: true, survey: newSurvey };
+  };
+
+  // UPDATE
+  const updateSurvey = async (id, surveyData) => {
+    const updatedSurvey = { ...surveyData, id: Number(id) };
+    const next = surveys.map((s) => (s.id === Number(id) ? updatedSurvey : s));
+    setSurveys(next);
+    try {
+      localStorage.setItem('engagement-surveys', JSON.stringify(next));
+    } catch (error) {
+      console.error('Failed to save surveys:', error);
+    }
+    return { success: true, survey: updatedSurvey };
+  };
+
+  // DELETE
+  const deleteSurvey = async (id) => {
+    const next = surveys.filter((s) => s.id !== Number(id));
+    setSurveys(next);
+    try {
+      localStorage.setItem('engagement-surveys', JSON.stringify(next));
+    } catch (error) {
+      console.error('Failed to save surveys:', error);
+    }
+    return { success: true, id: Number(id) };
+  };
+
+  // ===== CRUD Operations for Recognitions =====
+
+  // CREATE
+  const addRecognition = async (recognitionData) => {
+    const newRecognition = {
+      id: Math.max(...recognitions.map((r) => r.id), 0) + 1,
+      ...recognitionData,
+    };
+    const next = [...recognitions, newRecognition];
+    setRecognitions(next);
+    try {
+      localStorage.setItem('engagement-recognitions', JSON.stringify(next));
+    } catch (error) {
+      console.error('Failed to save recognitions:', error);
+    }
+    return { success: true, recognition: newRecognition };
+  };
+
+  // UPDATE
+  const updateRecognition = async (id, recognitionData) => {
+    const updatedRecognition = { ...recognitionData, id: Number(id) };
+    const next = recognitions.map((r) => (r.id === Number(id) ? updatedRecognition : r));
+    setRecognitions(next);
+    try {
+      localStorage.setItem('engagement-recognitions', JSON.stringify(next));
+    } catch (error) {
+      console.error('Failed to save recognitions:', error);
+    }
+    return { success: true, recognition: updatedRecognition };
+  };
+
+  // DELETE
+  const deleteRecognition = async (id) => {
+    const next = recognitions.filter((r) => r.id !== Number(id));
+    setRecognitions(next);
+    try {
+      localStorage.setItem('engagement-recognitions', JSON.stringify(next));
+    } catch (error) {
+      console.error('Failed to save recognitions:', error);
+    }
+    return { success: true, id: Number(id) };
+  };
+
+  // ===== CRUD Operations for Announcements =====
+
+  // CREATE
+  const addAnnouncement = async (announcementData) => {
+    const newAnnouncement = {
+      id: Math.max(...announcements.map((a) => a.id), 0) + 1,
+      ...announcementData,
+    };
+    const next = [...announcements, newAnnouncement];
+    setAnnouncements(next);
+    try {
+      localStorage.setItem('engagement-announcements', JSON.stringify(next));
+    } catch (error) {
+      console.error('Failed to save announcements:', error);
+    }
+    return { success: true, announcement: newAnnouncement };
+  };
+
+  // UPDATE
+  const updateAnnouncement = async (id, announcementData) => {
+    const updatedAnnouncement = { ...announcementData, id: Number(id) };
+    const next = announcements.map((a) => (a.id === Number(id) ? updatedAnnouncement : a));
+    setAnnouncements(next);
+    try {
+      localStorage.setItem('engagement-announcements', JSON.stringify(next));
+    } catch (error) {
+      console.error('Failed to save announcements:', error);
+    }
+    return { success: true, announcement: updatedAnnouncement };
+  };
+
+  // DELETE
+  const deleteAnnouncement = async (id) => {
+    const next = announcements.filter((a) => a.id !== Number(id));
+    setAnnouncements(next);
+    try {
+      localStorage.setItem('engagement-announcements', JSON.stringify(next));
+    } catch (error) {
+      console.error('Failed to save announcements:', error);
+    }
+    return { success: true, id: Number(id) };
+  };
+
   // UPDATE - Profile photo for the signed-in user
   // Persists in the in-memory DB, mirrors it on the linked employee record,
   // and updates the auth user so every avatar in the app refreshes instantly.
@@ -266,8 +420,17 @@ export function AppProvider({ children, mode, setMode }) {
       addActivity,
       updateActivity,
       deleteActivity,
+      addSurvey,
+      updateSurvey,
+      deleteSurvey,
+      addRecognition,
+      updateRecognition,
+      deleteRecognition,
+      addAnnouncement,
+      updateAnnouncement,
+      deleteAnnouncement,
     }),
-    [auth, themeMode, employees, recognitions, surveys, activities, announcements, loading, crudLoading, mode, addActivity, deleteActivity, updateActivity]
+    [auth, themeMode, employees, recognitions, surveys, activities, announcements, loading, crudLoading, mode, addActivity, deleteActivity, updateActivity, addSurvey, updateSurvey, deleteSurvey, addRecognition, updateRecognition, deleteRecognition, addAnnouncement, updateAnnouncement, deleteAnnouncement]
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
