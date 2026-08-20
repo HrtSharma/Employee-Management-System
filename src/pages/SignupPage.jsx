@@ -13,7 +13,6 @@ export default function SignupPage() {
   const { signup } = useAppContext();
   const [form, setForm] = useState({ firstName: '', lastName: '', email: '', password: '', confirmPassword: '', department: '', role: '', terms: false });
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
 
   const passwordStrength = form.password.length >= 8 ? 'Strong' : form.password.length >= 4 ? 'Medium' : 'Weak';
@@ -23,7 +22,6 @@ export default function SignupPage() {
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError('');
-    setSuccess('');
     if (!form.firstName || !form.lastName || !form.email || !form.password || !form.confirmPassword || !form.department || !form.role || !form.terms) {
       setError('Please complete every required field.');
       return;
@@ -37,11 +35,15 @@ export default function SignupPage() {
       return;
     }
     setLoading(true);
-    const result = await signup({ firstName: form.firstName, lastName: form.lastName, email: form.email, department: form.department, role: form.role });
+    const result = await signup({ firstName: form.firstName, lastName: form.lastName, email: form.email, password: form.password, department: form.department, role: form.role });
     setLoading(false);
     if (result.success) {
-      setSuccess('Account created successfully.');
-      setTimeout(() => navigate('/dashboard'), 600);
+      navigate('/login', {
+        state: { success: 'Your account was created successfully. Please sign in to continue.' },
+        replace: true,
+      });
+    } else {
+      setError(result.message || 'Unable to create your account.');
     }
   };
 
@@ -57,7 +59,6 @@ export default function SignupPage() {
         </Box>
         <Paper elevation={0} sx={{ p: { xs: 2.5, md: 4 }, borderRadius: 4, background: theme.palette.mode === 'dark' ? 'rgba(17,24,39,0.8)' : 'rgba(255,255,255,0.85)', backdropFilter: 'blur(16px)', border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.06)'}` }}>
           {error && <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>{error}</Alert>}
-          {success && <Alert severity="success" sx={{ mb: 2, borderRadius: 2 }}>{success}</Alert>}
           <Box component="form" onSubmit={handleSubmit}>
             <Typography variant="body2" sx={{ fontWeight: 700, mb: 1.5, color: 'text.secondary' }}>Personal Information</Typography>
             <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>

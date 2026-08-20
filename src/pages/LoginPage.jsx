@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Alert, Box, Button, Checkbox, FormControlLabel, Grid, IconButton, InputAdornment, Paper, Stack, TextField, Typography, useTheme } from '@mui/material';
 import { Visibility, VisibilityOff, Google, Microsoft, Psychology, Groups, EmojiEvents, Quiz } from '@mui/icons-material';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 
 const features = [
@@ -13,11 +13,12 @@ const features = [
 export default function LoginPage() {
   const theme = useTheme();
   const navigate = useNavigate();
+  const location = useLocation();
   const { login } = useAppContext();
   const [showPassword, setShowPassword] = useState(false);
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [success, setSuccess] = useState(location.state?.success || '');
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (event) => {
@@ -87,9 +88,17 @@ export default function LoginPage() {
           </Box>
           <Paper elevation={0} sx={{ p: { xs: 2.5, md: 3.5 }, borderRadius: 4, background: theme.palette.mode === 'dark' ? 'rgba(17,24,39,0.8)' : 'rgba(255,255,255,0.85)', backdropFilter: 'blur(16px)', border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.06)'}` }}>
             <Box sx={{ mb: 2, p: 1.5, borderRadius: 2, bgcolor: 'rgba(99, 102, 241, 0.08)', border: '1px dashed rgba(99, 102, 241, 0.3)' }}>
-              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
-                💡 Demo: Use any email containing <strong>"admin"</strong> (e.g. admin@company.com) to access the Admin-only Salary Setup area.
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, display: 'block', mb: 0.5 }}>
+                💡 Demo logins
               </Typography>
+              <Stack spacing={0.4}>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                  <strong>Admin:</strong> admin@company.com / admin123 (full access incl. Salary Setup)
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                  <strong>Employee:</strong> ava.patel@company.com / password123 (<Link to="/signup" style={{ color: theme.palette.primary.main, fontWeight: 700 }}>create a new employee account</Link>)
+                </Typography>
+              </Stack>
             </Box>
             {error && <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>{error}</Alert>}
             {success && <Alert severity="success" sx={{ mb: 2, borderRadius: 2 }}>{success}</Alert>}
