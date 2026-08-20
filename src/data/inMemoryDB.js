@@ -6,6 +6,31 @@ import { employeesData } from './mockData';
 
 const STORAGE_KEY = 'employee-db-data';
 const USER_PHOTO_KEY = 'employee-user-photos';
+const ACCOUNTS_KEY = 'employee-user-accounts';
+
+// Default login credentials seeded for the demo.
+// Admins sign in with admin@company.com / admin123.
+// Seeded employees can sign in with their work email / password123.
+const defaultAccounts = [
+  {
+    id: 1,
+    name: 'System Admin',
+    email: 'admin@company.com',
+    password: 'admin123',
+    role: 'Admin',
+    department: 'People Operations',
+    designation: 'Administrator',
+  },
+  ...employeesData.map((emp, index) => ({
+    id: index + 2,
+    name: emp.name,
+    email: emp.email,
+    password: 'password123',
+    role: 'Employee',
+    department: emp.department,
+    designation: emp.designation,
+  })),
+];
 
 class InMemoryDB {
   constructor() {
@@ -13,6 +38,9 @@ class InMemoryDB {
     this.nextId = Math.max(...this.employees.map((e) => e.id), 0) + 1;
     // Profile photos for signed-in users (keyed by email)
     this.profilePhotos = this._loadPhotosFromStorage() || {};
+    // Login credentials (emails + passwords) for admins and employees
+    this.accounts = this._loadAccountsFromStorage() || JSON.parse(JSON.stringify(defaultAccounts));
+    this.nextAccountId = Math.max(...this.accounts.map((a) => a.id), 0) + 1;
   }
 
   // Load persisted data from localStorage
@@ -158,6 +186,87 @@ class InMemoryDB {
   // Helper: Get next available ID (for form preview)
   getNextId() {
     return this.nextId;
+  }
+
+  // ===== User Account Management (login credentials) =====
+
+  // Load persisted user accounts from localStorage
+  _loadAccountsFromStorage() {
+    try {
+      const stored = localStorage.getItem(ACCOUNTS_KEY);
+      if (stored) {
+        return JSON.parse(stored);
+      }
+    } catch (error) {
+      console.error('Failed to load user accounts from localStorage:', error);
+    }
+    return null;
+  }
+
+  // Persist user accounts to localStorage
+  _saveAccountsToStorage() {
+    try {
+      localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(this.accounts));
+    } catch (error) {
+      console.error('Failed to save user accounts to localStorage:', error);
+    }
+  }
+
+  // READ - Get all user accounts
+  async getUserAccounts() {
+    await this._delay(100);
+    return this.accounts.map((a) => ({ ...a }));
+  }
+
+  // READ - Find a single account by email (case-insensitive)
+  async findUserByEmail(email) {
+    await this._delay(80);
+    if (!email) return null;
+    const account = this.accounts.find((a) => a.email?.toLowerCase() === email.toLowerCase());
+    return account ? { ...account } : null;
+  }
+
+  // CREATE - Register a new user account (throws if the email is taken)
+  async createUserAccount(accountData) {
+    await this._delay();
+    const email = (accountData.email || '').toLowerCase();
+    const exists = this.accounts.some((a) => a.email?.toLowerCase() === email);
+    if (exists) {
+      throw new Error('An account with this email already exists.');
+    }
+    const newAccount = {
+      id: this.nextAccountId++,
+      ...accountData,
+      email,
+      role: accountData.role || 'Employee',
+    };
+    this.accounts.push(newAccount);
+    this._saveAccountsToStorage();
+    return { ...newAccount };
+  }
+
+  // UPDATE - Update an existing user account
+  async updateUserAccount(id, accountData) {
+    await this._delay();
+    const index = this.accounts.findIndex((a) => a.id === Number(id));
+    if (index === -1) {
+      throw new Error(`Account with id ${id} not found`);
+    }
+    this.accounts[index] = { ...this.accounts[index], ...accountData, id: Number(id) };
+    this._saveAccountsToStorage();
+    return { ...this.accounts[index] };
+  }
+
+  // DELETE - Remove a user account
+  async deleteUserAccount(id) {
+    await this._delay();
+    const index = this.accounts.findIndex((a) => a.id === Number(id));
+    if (index === -1) {
+      throw new Error(`Account with id ${id} not found`);
+    }
+    const [deleted] = this.accounts.splice(index, 1);
+    this._saveAccountsToStorage();
+    return { ...deleted };
   }
 
   // Reset the database to initial seed data

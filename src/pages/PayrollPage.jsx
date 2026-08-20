@@ -44,7 +44,7 @@ const deductionLabels = {
 
 export default function PayrollPage() {
   const theme = useTheme();
-  const { employees } = useAppContext();
+  const { employees, auth } = useAppContext();
   const [records, setRecords] = useState([]);
   const [search, setSearch] = useState('');
   const [monthFilter, setMonthFilter] = useState('All');
@@ -53,11 +53,19 @@ export default function PayrollPage() {
 
   useEffect(() => {
     const loadData = async () => {
-      const data = await payrollDB.getPayrollRecords();
+      const isAdmin = auth?.user?.role === 'Admin';
+      const currentEmployee = employees.find((e) => e.email?.toLowerCase() === auth?.user?.email?.toLowerCase());
+      // Admins see every payslip; employees only ever see their own.
+      const data = isAdmin
+        ? await payrollDB.getPayrollRecords()
+        : currentEmployee
+          ? await payrollDB.getPayrollRecordsByEmployee(currentEmployee.id)
+          : [];
       setRecords(data);
     };
     loadData();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auth?.user?.email]);
 
   const enrichedRecords = useMemo(() => {
     return records.map((record) => {
@@ -107,11 +115,15 @@ export default function PayrollPage() {
       <Box className="animate-fade-up" sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 2 }}>
         <Box>
           <Typography variant="h4" sx={{ fontWeight: 800 }}>Payroll & Payslips</Typography>
-          <Typography color="text.secondary" sx={{ mt: 0.5 }}>Generate, view, and manage employee payslips.</Typography>
+          <Typography color="text.secondary" sx={{ mt: 0.5 }}>
+            {auth?.user?.role === 'Admin' ? 'Generate, view, and manage employee payslips.' : 'View your payslips and download statements.'}
+          </Typography>
         </Box>
-        <Button variant="contained" className="btn-glow" startIcon={<Payments />} sx={{ borderRadius: 3, px: 3, py: 1.2 }}>
-          Run Payroll
-        </Button>
+        {auth?.user?.role === 'Admin' && (
+          <Button variant="contained" className="btn-glow" startIcon={<Payments />} sx={{ borderRadius: 3, px: 3, py: 1.2 }}>
+            Run Payroll
+          </Button>
+        )}
       </Box>
 
       {/* Summary cards */}
@@ -172,7 +184,7 @@ export default function PayrollPage() {
           <Grid item xs={12} md={6}>
             <TextField
               fullWidth
-              placeholder="Search by employee name, role, or department..."
+              placeholder={auth?.user?.role === 'Admin' ? 'Search by employee name, role, or department...' : 'Search your payslips by month...'}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               InputProps={{

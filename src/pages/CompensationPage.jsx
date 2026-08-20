@@ -5,6 +5,7 @@ import { BarChart, Bar, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer,
 import { useAppContext } from '../context/AppContext';
 import { payrollDB } from '../data/payrollDB';
 import { useNavigate } from 'react-router-dom';
+import MyCompensationView from '../components/MyCompensationView';
 
 const avatarGradients = ['linear-gradient(135deg, #6366f1, #a855f7)', 'linear-gradient(135deg, #ec4899, #f59e0b)', 'linear-gradient(135deg, #10b981, #0ea5e9)', 'linear-gradient(135deg, #f59e0b, #ef4444)'];
 
@@ -42,7 +43,7 @@ function CustomTooltip({ active, payload, label, suffix = '' }) {
 export default function CompensationPage() {
   const theme = useTheme();
   const navigate = useNavigate();
-  const { employees } = useAppContext();
+  const { employees, auth } = useAppContext();
   const [salaryStructures, setSalaryStructures] = useState([]);
   const [payBands, setPayBands] = useState([]);
   const [payrollRecords, setPayrollRecords] = useState([]);
@@ -61,22 +62,24 @@ export default function CompensationPage() {
       setPayrollRecords(records);
       setSummary(summaryData);
 
-      // Auto-create salary structures for any employees missing one
-      const existingIds = new Set(structures.map((s) => s.employeeId));
-      const missingEmployees = employees.filter((emp) => !existingIds.has(emp.id));
-      if (missingEmployees.length > 0) {
-        const newStructures = [];
-        for (const emp of missingEmployees) {
-          const structure = await payrollDB.createDefaultSalaryStructure(emp.id, emp);
-          newStructures.push(structure);
-        }
-        if (newStructures.length > 0) {
-          setSalaryStructures((prev) => [...prev, ...newStructures]);
+      // Admin-only: auto-create salary structures for any employees missing one
+      if (auth?.user?.role === 'Admin') {
+        const existingIds = new Set(structures.map((s) => s.employeeId));
+        const missingEmployees = employees.filter((emp) => !existingIds.has(emp.id));
+        if (missingEmployees.length > 0) {
+          const newStructures = [];
+          for (const emp of missingEmployees) {
+            const structure = await payrollDB.createDefaultSalaryStructure(emp.id, emp);
+            newStructures.push(structure);
+          }
+          if (newStructures.length > 0) {
+            setSalaryStructures((prev) => [...prev, ...newStructures]);
+          }
         }
       }
     };
     loadData();
-  }, [employees]);
+  }, [employees, auth?.user?.role]);
 
   const enrichedStructures = useMemo(() => {
     return salaryStructures.map((structure) => {
@@ -146,6 +149,26 @@ export default function CompensationPage() {
     { label: 'Monthly Tax Deducted', value: summary ? formatINR(summary.taxDeductedThisMonth) : '...', detail: 'Income tax (TDS)', icon: <ReceiptLong />, gradient: 'stat-gradient-orange' },
     { label: 'Next Payroll Run', value: summary?.nextPayrollDate || '...', detail: 'Scheduled', icon: <BusinessCenter />, gradient: 'stat-gradient-cyan' },
   ];
+
+  const authUser = auth?.user;
+  const isAdminView = authUser?.role === 'Admin';
+  const currentEmployee = employees.find((e) => e.email?.toLowerCase() === authUser?.email?.toLowerCase());
+
+  // Employees only see their own compensation. Admin sees the org-wide view.
+  if (!isAdminView) {
+    const ownStructure = enrichedStructures.find((s) => s.employeeId === currentEmployee?.id);
+    const ownRecords = payrollRecords.filter((r) => r.employeeId === currentEmployee?.id);
+    const rawOwnStructure = salaryStructures.find((s) => s.employeeId === currentEmployee?.id);
+    return (
+      <MyCompensationView
+        structure={ownStructure}
+        deductionBreakdown={rawOwnStructure?.deductions}
+        records={ownRecords}
+        summary={summary}
+        employeeName={currentEmployee?.name}
+      />
+    );
+  }
 
   return (
     <Box>

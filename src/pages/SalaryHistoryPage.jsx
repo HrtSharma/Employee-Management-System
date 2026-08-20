@@ -32,7 +32,7 @@ const revisionTypes = ['Annual Appraisal', 'Promotion', 'Salary Correction', 'Ma
 
 export default function SalaryHistoryPage() {
   const theme = useTheme();
-  const { employees } = useAppContext();
+  const { employees, auth } = useAppContext();
   const [history, setHistory] = useState([]);
   const [salaryStructures, setSalaryStructures] = useState([]);
   const [payBands, setPayBands] = useState([]);
@@ -51,8 +51,10 @@ export default function SalaryHistoryPage() {
 
   useEffect(() => {
     const loadData = async () => {
+      const isAdmin = auth?.user?.role === 'Admin';
+      const currentEmployee = employees.find((e) => e.email?.toLowerCase() === auth?.user?.email?.toLowerCase());
       const [historyData, structures, bands] = await Promise.all([
-        payrollDB.getSalaryHistory(),
+        isAdmin ? payrollDB.getSalaryHistory() : currentEmployee ? payrollDB.getSalaryHistoryByEmployee(currentEmployee.id) : Promise.resolve([]),
         payrollDB.getSalaryStructures(),
         payrollDB.getPayBands(),
       ]);
@@ -61,7 +63,17 @@ export default function SalaryHistoryPage() {
       setPayBands(bands);
     };
     loadData();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auth?.user?.email]);
+
+  // Employees are locked to their own salary history.
+  useEffect(() => {
+    if (auth?.user?.role !== 'Admin') {
+      const currentEmployee = employees.find((e) => e.email?.toLowerCase() === auth?.user?.email?.toLowerCase());
+      if (currentEmployee) setSelectedEmployeeId(String(currentEmployee.id));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auth?.user?.email]);
 
   const enrichedHistory = useMemo(() => {
     return history
@@ -75,10 +87,14 @@ export default function SalaryHistoryPage() {
       .sort((a, b) => new Date(b.effectiveDate) - new Date(a.effectiveDate));
   }, [employees, history, payBands, salaryStructures]);
 
+  const currentEmployee = employees.find((e) => e.email?.toLowerCase() === auth?.user?.email?.toLowerCase());
+  const isAdminView = auth?.user?.role === 'Admin';
+  const currentEmployeeId = isAdminView ? selectedEmployeeId : String(currentEmployee?.id || 'All');
+
   const filteredHistory = useMemo(() => {
-    if (selectedEmployeeId === 'All') return enrichedHistory;
-    return enrichedHistory.filter((entry) => entry.employeeId === Number(selectedEmployeeId));
-  }, [enrichedHistory, selectedEmployeeId]);
+    if (currentEmployeeId === 'All') return enrichedHistory;
+    return enrichedHistory.filter((entry) => entry.employeeId === Number(currentEmployeeId));
+  }, [enrichedHistory, currentEmployeeId]);
 
   // Group by employee for the summary
   const employeeSummaries = useMemo(() => {
@@ -146,11 +162,15 @@ export default function SalaryHistoryPage() {
       <Box className="animate-fade-up" sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 2 }}>
         <Box>
           <Typography variant="h4" sx={{ fontWeight: 800 }}>Salary History</Typography>
-          <Typography color="text.secondary" sx={{ mt: 0.5 }}>Track salary revisions, appraisals, and promotions across the organization.</Typography>
+          <Typography color="text.secondary" sx={{ mt: 0.5 }}>
+            {isAdminView ? 'Track salary revisions, appraisals, and promotions across the organization.' : 'Track your salary revisions, appraisals, and promotions.'}
+          </Typography>
         </Box>
-        <Button variant="contained" className="btn-glow" startIcon={<Add />} onClick={handleOpenDialog} sx={{ borderRadius: 3, px: 3, py: 1.2 }}>
-          New Revision
-        </Button>
+        {isAdminView && (
+          <Button variant="contained" className="btn-glow" startIcon={<Add />} onClick={handleOpenDialog} sx={{ borderRadius: 3, px: 3, py: 1.2 }}>
+            New Revision
+          </Button>
+        )}
       </Box>
 
       {/* Summary stat cards */}
@@ -211,12 +231,18 @@ export default function SalaryHistoryPage() {
       <Paper className="card-surface" sx={{ p: 2.5, mb: 3 }}>
         <Grid container spacing={2} alignItems="center">
           <Grid item xs={12} md={6}>
-            <TextField select fullWidth label="Filter by Employee" value={selectedEmployeeId} onChange={(e) => setSelectedEmployeeId(e.target.value)}>
-              <MenuItem value="All">All Employees</MenuItem>
-              {employees.map((emp) => (
-                <MenuItem key={emp.id} value={emp.id}>{emp.name}</MenuItem>
-              ))}
-            </TextField>
+            {isAdminView ? (
+              <TextField select fullWidth label="Filter by Employee" value={selectedEmployeeId} onChange={(e) => setSelectedEmployeeId(e.target.value)}>
+                <MenuItem value="All">All Employees</MenuItem>
+                {employees.map((emp) => (
+                  <MenuItem key={emp.id} value={emp.id}>{emp.name}</MenuItem>
+                ))}
+              </TextField>
+            ) : (
+              <TextField select fullWidth disabled label="Employee" value={currentEmployeeId}>
+                <MenuItem value={currentEmployeeId}>{currentEmployee?.name || 'You'}</MenuItem>
+              </TextField>
+            )}
           </Grid>
           <Grid item xs={12} md={6}>
             <Typography variant="body2" color="text.secondary">

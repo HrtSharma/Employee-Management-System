@@ -27,8 +27,8 @@ function AppRoutes() {
       <Route path="/login" element={auth.isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
       <Route path="/signup" element={auth.isAuthenticated ? <Navigate to="/dashboard" replace /> : <SignupPage />} />
       <Route path="/forgot-password" element={auth.isAuthenticated ? <Navigate to="/dashboard" replace /> : <ForgotPasswordPage />} />
-      <Route element={<Layout />}>
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      <Route element={auth.isAuthenticated ? <Layout /> : <Navigate to="/login" replace />}>
+        <Route path="/" element={<Navigate to={auth.isAuthenticated ? '/dashboard' : '/login'} replace />} />
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/employees" element={<EmployeesPage />} />
         <Route path="/recognition" element={<RecognitionPage />} />

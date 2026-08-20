@@ -1,5 +1,4 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import axios from 'axios';
 import { recognitionData, surveyData, activityData, announcementData } from '../data/mockData';
 import { db } from '../data/inMemoryDB';
 import { payrollDB } from '../data/payrollDB';
@@ -81,36 +80,84 @@ export function AppProvider({ children, mode, setMode }) {
   const login = async (email, password) => {
     try {
       setLoading(true);
-      const response = await axios.get('https://jsonplaceholder.typicode.com/users/1');
-      // Detect admin login via email
-      const isAdminLogin = email.toLowerCase().includes('admin');
-      const role = isAdminLogin ? 'Admin' : 'HR Lead';
-      const user = { id: response.data.id, name: response.data.name, email, role };
+      // Look up the account and verify credentials against the stored accounts.
+      const account = await db.findUserByEmail(email);
+      if (!account) {
+        return { success: false, message: 'No account found for this email. Please create an account first.' };
+      }
+      if (account.password !== password) {
+        return { success: false, message: 'Invalid email or password.' };
+      }
+
+      const user = {
+        id: account.id,
+        name: account.name,
+        email: account.email,
+        role: account.role,
+        department: account.department,
+      };
 
       // Restore the profile photo persisted in the in-memory DB (if any)
       try {
         const storedPhoto = await db.getProfilePhoto(email);
         if (storedPhoto) user.photo = storedPhoto;
-        const allEmployees = await db.getEmployees();
-        const linkedEmployee = allEmployees.find((emp) => emp.email?.toLowerCase() === email.toLowerCase());
-        if (linkedEmployee?.photo) user.photo = linkedEmployee.photo;
       } catch {
         // Non-critical: sign-in should still succeed even if photo restore fails
       }
 
       setAuth({ isAuthenticated: true, user });
+      localStorage.setItem('engagement-auth', JSON.stringify({ isAuthenticated: true, user }));
       return { success: true, user };
-    } catch {
-      setAuth({ isAuthenticated: false, user: null });
-      return { success: false, message: 'Unable to sign in with mock credentials.' };
+    } catch (error) {
+      console.error('Login error:', error);
+      return { success: false, message: 'Unable to sign in. Please try again.' };
     } finally {
       setLoading(false);
     }
   };
 
   const signup = async (payload) => {
-    setAuth({ isAuthenticated: true, user: { ...payload, role: payload.department } });
-    return { success: true };
+    setCrudLoading(true);
+    try {
+      // 1. Register the new account (email + password) as an Employee
+      const account = await db.createUserAccount({
+        name: `${payload.firstName} ${payload.lastName}`.trim(),
+        email: payload.email,
+        password: payload.password,
+        role: 'Employee',
+        department: payload.department,
+        designation: payload.role,
+      });
+
+      // 2. Create the matching employee record so the sign-up data is reflected
+      //    in the Employees directory.
+      const newEmployee = await db.createEmployee({
+        name: account.name,
+        department: payload.department,
+        designation: payload.role,
+        email: payload.email,
+        location: 'Remote',
+        status: 'Active',
+        satisfaction: 82,
+        skills: [],
+      });
+
+      // 3. Auto-create a default salary structure for the new employee
+      try {
+        await payrollDB.createDefaultSalaryStructure(newEmployee.id, newEmployee);
+      } catch (error) {
+        console.error('Failed to create default salary structure:', error);
+      }
+
+      // 4. Refresh the employees state so the new hire shows up immediately
+      setEmployees((prev) => [...prev.filter((e) => e.id !== newEmployee.id), newEmployee]);
+
+      return { success: true, user: account };
+    } catch (error) {
+      return { success: false, message: error.message || 'Unable to create your account.' };
+    } finally {
+      setCrudLoading(false);
+    }
   };
 
   const logout = () => {
